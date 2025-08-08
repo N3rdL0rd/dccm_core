@@ -11,7 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HashlinkNET.Compiler.Pseudocode.Steps
+namespace HashlinkNET.Compiler.Pseudocode.Steps.Backend
 {
     class EmitILStep : CompileStep
     {
@@ -20,6 +20,8 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
             var gdata = container.GetGlobalData<FuncEmitGlobalData>();
             var rdata = container.GetGlobalData<RuntimeImports>();
             var md = gdata.Definition;
+
+            var list = container.GetGlobalData<List<IRBasicBlockData>>();
 
 
             md.Body.Instructions.Clear();
@@ -30,28 +32,11 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
             var mdsd = md.DebugInformation.Scope = new(startInst, endInst);
             var vds = new ScopeDebugInformation[gdata.Registers.Count];
 
-            Queue<IRBasicBlockData> queue = [];
-            BitArray visited = new(gdata.IRBasicBlocks.Count);
+            
 
-            queue.Enqueue(gdata.IRBasicBlocks[0]);
-
-            while (queue.TryDequeue(out var bb))
+            foreach (var bb in list)
             {
-                if (visited[bb.index])
-                {
-                    continue;
-                }
-                visited[bb.index] = true;
-
-                foreach (var v in bb.transitions)
-                {
-                    queue.Enqueue(v.Target);
-                }
-
                 il.Emit(OpCodes.Nop);
-
-                //il.Emit(OpCodes.Ldstr, "======BB Start======");
-                //il.Emit(OpCodes.Pop);
 
                 il.Append(bb.startInst);
                 var ctx = new EmitContext(
@@ -62,7 +47,8 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
                     rdata,
                     container.GetGlobalData<CompileConfig>(),
                     mdsd,
-                    il)
+                    il,
+                    gdata)
                 {
                     VariableDebugs = vds
                 };
@@ -77,9 +63,8 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
                     il.Emit(OpCodes.Br, bb.defaultTransition.startInst);
                 }
                 il.Append(bb.endInst);
-                //il.Emit(OpCodes.Ldstr, "======BB End======");
-                //il.Emit(OpCodes.Pop);
             }
+
             il.Emit(OpCodes.Ret);
             il.Append(endInst);
         }

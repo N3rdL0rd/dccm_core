@@ -32,7 +32,8 @@ namespace HashlinkNET.Compiler.Data
 
         public MethodReference attrTypeBindingCtor;
         public MethodReference attrFIndexCtor;
-        public MethodReference attrTIndexCtor; 
+        public MethodReference attrTIndexCtor;
+        public MethodReference attrDynamic;
         public MethodReference jsonIgnoreCtor;
 
         public MethodReference delegateDynInvokeMethod;
@@ -77,6 +78,8 @@ namespace HashlinkNET.Compiler.Data
         public MethodReference phCreateObject;
         public MethodReference phCreateClosure;
         public TypeReference objectBaseType;
-        internal MethodReference hGetEnumIndex;
+        public MethodReference hGetEnumIndex;
+        public MethodReference phReadMem;
+        public MethodReference phWriteMem;
     }
 }

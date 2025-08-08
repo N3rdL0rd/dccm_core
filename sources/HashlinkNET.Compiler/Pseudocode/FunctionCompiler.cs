@@ -1,8 +1,10 @@
-﻿using HashlinkNET.Bytecode;
+﻿using BytecodeMapping;
+using HashlinkNET.Bytecode;
 using HashlinkNET.Compiler.Data;
 using HashlinkNET.Compiler.Pseudocode.Data;
 using HashlinkNET.Compiler.Pseudocode.Steps;
-using HashlinkNET.Compiler.Pseudocode.Steps.SSA;
+using HashlinkNET.Compiler.Pseudocode.Steps.Backend;
+using HashlinkNET.Compiler.Pseudocode.Steps.DFA;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,20 +16,30 @@ namespace HashlinkNET.Compiler.Pseudocode
     internal class FunctionCompiler(
         HlFunction function,
         FuncData func,
-        IDataContainer parent) : BaseCompiler
+        IDataContainer parent,
+        BytecodeMappingData.FunctionData mappingData) : BaseCompiler
     {
         protected override void InstallSteps()
         {
+            var config = parent.GetGlobalData<GlobalData>().Config;
             AddStep<GenerateFuncRegsStep>();
             AddStep<SplitBasicBlocksStep>();
 
             AddStep<ParseOpCodesStep>();
 
+            //DFA
             AddStep<GenerateFlatIRStep>();
-            AddStep<SSAScanRegistersAccessStep>();
+            AddStep<ScanRegistersAccessStep>();
 
+            //Backend
+            AddStep<PostprocessBasicBlocksStep>();
+            AddStep<LinearizeBasicBlocksStep>();
             AddStep<EmitILStep>();
             AddStep<TrimILStep>();
+            if (config.GenerateBytecodeMapping)
+            {
+                AddStep<FillBytecodeMappingDataStep>();
+            }
             AddStep<OptimizeILStep>();
         }
 
@@ -37,7 +49,8 @@ namespace HashlinkNET.Compiler.Pseudocode
             data.AddGlobalData<FuncEmitGlobalData>(new(
                 function,
                 ((HlTypeWithFun)function.Type.Value).FunctionDescription,
-                func.Definition
+                func.Definition,
+                mappingData
                 ));
         }
     }

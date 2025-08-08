@@ -2,6 +2,7 @@
 using Hashlink.Marshaling;
 using Hashlink.Proxy;
 using Hashlink.Proxy.Clousre;
+using Hashlink.Proxy.DynamicAccess;
 using Hashlink.Proxy.Objects;
 using Hashlink.Proxy.Values;
 using Hashlink.Reflection.Members;
@@ -60,6 +61,10 @@ namespace HaxeProxy.Runtime.Internals
         public static object? GetFieldById<T>( HaxeProxyBase self, string name, ref ObjFieldInfoCache cache )
             where T : class
         {
+            if (string.IsNullOrEmpty(name))
+            {
+                return null;
+            }
             EnsureFieldInfo(self, name, ref cache);
             if (cache.offset == 0)
             {
@@ -74,6 +79,10 @@ namespace HaxeProxy.Runtime.Internals
         public static T GetValueFieldById<T>( HaxeProxyBase self, string name, ref ObjFieldInfoCache cache )
             where T : unmanaged
         {
+            if (string.IsNullOrEmpty(name))
+            {
+                return default;
+            }
             EnsureFieldInfo(self, name, ref cache);
             if (cache.offset == 0)
             {
@@ -125,11 +134,10 @@ namespace HaxeProxy.Runtime.Internals
             {
                 return null;
             }
-            if (val is T)
+            if (val is T && typeof(T) != typeof(object))
             {
                 return val;
             }
-
             if (typeof(T).IsAssignableTo(typeof(Delegate)))
             {
                 if (val is Delegate d)
@@ -140,6 +148,10 @@ namespace HaxeProxy.Runtime.Internals
                 {
                     return closure.CreateDelegate(typeof(T));
                 }
+            }
+            if (val is HashlinkDynObj dyn)
+            {
+                return HashlinkObjDynamicAccess.Create(dyn);
             }
             if (val is IExtraData ied)
             {

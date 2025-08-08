@@ -9,10 +9,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HashlinkNET.Compiler.Pseudocode.Steps
+namespace HashlinkNET.Compiler.Pseudocode.Steps.Backend
 {
     internal class TrimILStep : CompileStep
     {
+        private static readonly object REMOVED_NOP = new();
         private record struct StackItem(StlocInfo? Info, Instruction Instruction);
         private class StlocInfo
         {
@@ -140,11 +141,11 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
         public override void Execute( IDataContainer container )
         {
             var gdata = container.GetGlobalData<FuncEmitGlobalData>();
+            var list = container.GetGlobalData<List<IRBasicBlockData>>();
             var md = gdata.Definition;
-            var insts = md.Body.Instructions;
 
             var stack = new List<StackItem>();
-            var stack_id = 0;
+            int stack_id;
 
             void Push( Instruction instruction, StlocInfo? inst )
             {
@@ -170,7 +171,7 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
             }
 
 
-            foreach (var bb in gdata.IRBasicBlocks)
+            foreach (var bb in list)
             {
                 var rad = bb.registerAccessData!;
                 var it = bb.startInst;
@@ -221,6 +222,7 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
                     {
                         var info = (StlocInfo)it.Operand;
                         if ((info.register?.IsExposed ?? true) ||
+                            rad.readReg[info.register.Index] != rad.writeReg[info.register.Index] ||
                             (rad.exposedReg[info.register.Index] && info.isLast))
                         {
                             goto SKIP;
@@ -232,9 +234,9 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
                         if (info.isConstant)
                         {
                             val.Instruction.OpCode = OpCodes.Nop;
-                            val.Instruction.Operand = null;
+                            val.Instruction.Operand = REMOVED_NOP;
                             it.OpCode = OpCodes.Nop;
-                            it.Operand = null;
+                            it.Operand = REMOVED_NOP;
                         }
                         else
                         {
@@ -251,7 +253,7 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
                         {
                             goto SKIP;
                         }
-                        for (int i = stack_id - 1; i >= 0; i--)
+                        for (var i = stack_id - 1; i >= 0; i--)
                         {
                             if (info.isConstant)
                             {
@@ -266,10 +268,10 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
                             }
                             if (stack[i].Info == info)
                             {
-                                it.Operand = null;
+                                it.Operand = REMOVED_NOP;
                                 it.OpCode = OpCodes.Nop;
                                 info.instruction.OpCode = OpCodes.Nop;
-                                info.instruction.Operand = null;
+                                info.instruction.Operand = REMOVED_NOP;
 
                                 stack[i] = stack[i] with
                                 {
@@ -287,11 +289,11 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
                     }
                     SKIP:
                     (var pop, var push) = GetStackOperate(it, md);
-                    for (int i = 0; i < pop; i++)
+                    for (var i = 0; i < pop; i++)
                     {
                         Pop();
                     }
-                    for (int i = 0; i < push; i++)
+                    for (var i = 0; i < push; i++)
                     {
                         Push(it, null);
                     }
@@ -308,6 +310,45 @@ namespace HashlinkNET.Compiler.Pseudocode.Steps
                         it.Operand = info.variable;
                     }
                     it = it.Next;
+                }
+            }
+
+            // 
+
+            {
+                Instruction? lastBr = null;
+                foreach (var v in md.Body.Instructions)
+                {
+                    if (v.OpCode == OpCodes.Br)
+                    {
+                        lastBr = v;
+                        continue;
+                    }
+                    if (lastBr != null)
+                    {
+                        if (v == lastBr.Operand)
+                        {
+                            lastBr.Operand = REMOVED_NOP;
+                            lastBr.OpCode = OpCodes.Nop;
+                            continue;
+                        }
+                    }
+                    if (v.OpCode != OpCodes.Nop)
+                    {
+                        lastBr = null;
+                    }
+                    
+                }
+
+                var array = md.Body.Instructions.ToArray();
+                md.Body.Instructions.Clear();
+                foreach (var v in array)
+                {
+                    if (v.Operand == REMOVED_NOP)
+                    {
+                        continue;
+                    }
+                    md.Body.Instructions.Add(v);
                 }
             }
         }

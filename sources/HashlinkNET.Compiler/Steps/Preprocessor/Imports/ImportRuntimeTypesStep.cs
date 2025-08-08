@@ -10,6 +10,7 @@ using Mono.Cecil;
 using Newtonsoft.Json;
 using System.Dynamic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace HashlinkNET.Compiler.Steps.Preprocessor.Imports
 {
@@ -77,6 +78,8 @@ namespace HashlinkNET.Compiler.Steps.Preprocessor.Imports
             rdata.phDynSetMethod = ImportPseudocodeHelperMethod(nameof(PseudocodeHelper.DynSet));
             rdata.phCreateObject = ImportPseudocodeHelperMethod(nameof(PseudocodeHelper.CreateObject));
             rdata.phCreateClosure = ImportPseudocodeHelperMethod(nameof(PseudocodeHelper.CreateClosure));
+            rdata.phReadMem = ImportPseudocodeHelperMethod(nameof(PseudocodeHelper.ReadMem));
+            rdata.phWriteMem = ImportPseudocodeHelperMethod(nameof(PseudocodeHelper.WriteMem));
 
             rdata.hCreateInstance = ImportHelperMethod(nameof(HaxeProxyHelper.CreateInstance));
             rdata.hGetCallInfoById = ImportHelperMethod(nameof(HaxeProxyHelper.GetCallInfoById));
@@ -120,6 +123,7 @@ namespace HashlinkNET.Compiler.Steps.Preprocessor.Imports
             rdata.attrTypeBindingCtor = ImportAttribute<HaxeProxyBindingAttribute>();
             rdata.attrFIndexCtor = ImportAttribute<HashlinkFIndexAttribute>();
             rdata.attrTIndexCtor = ImportAttribute<HashlinkTIndexAttribute>();
+            rdata.attrDynamic = ImportAttribute<DynamicAttribute>();
             rdata.jsonIgnoreCtor = ImportAttribute<JsonIgnoreAttribute>();
 
             rdata.funcTypes = new TypeReference[FUNC_MAX_ARGS_COUNT];
